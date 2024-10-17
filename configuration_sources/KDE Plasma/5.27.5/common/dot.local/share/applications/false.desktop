@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=/usr/bin/false
+Name=false (NOOP)
+NoDisplay=true
+StartupNotify=false
+Type=Application
+X-KDE-GlobalAccel-CommandShortcut=true

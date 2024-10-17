@@ -1,0 +1,8 @@
+# `System Settings > Input Devices > Keyboard > Hardware`
+[Keyboard]
+NumLock=0
+RepeatDelay=200
+
+# `System Settings > Input Devices > Mouse`
+[Mouse]
+X11LibInputXAccelProfileFlat=false

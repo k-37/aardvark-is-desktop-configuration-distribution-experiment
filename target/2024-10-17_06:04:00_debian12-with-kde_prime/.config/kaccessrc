@@ -1,0 +1,7 @@
+# `System Settings > Accessibility`
+
+[Bell]
+SystemBell=false
+
+[ScreenReader]
+Enabled=false

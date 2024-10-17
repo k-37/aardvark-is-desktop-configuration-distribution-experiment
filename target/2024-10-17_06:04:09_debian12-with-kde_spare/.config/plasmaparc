@@ -1,0 +1,6 @@
+[General]
+# `System Settings > Audio > Configure Volume Controls... (displayed on the bottom-right of the panel) > Play audio feedback for changes to > Audio volume`
+AudioFeedback=false
+
+# `System Settings > Audio > Playback Streams > Notification Sounds`
+GlobalMute=true

@@ -1,0 +1,7 @@
+[Desktop Entry]
+Exec=bash ~/.local/bin/kde/login_script.bash
+Icon=dialog-scripts
+Name=login_script.bash
+Path=
+Type=Application
+X-KDE-AutostartScript=true

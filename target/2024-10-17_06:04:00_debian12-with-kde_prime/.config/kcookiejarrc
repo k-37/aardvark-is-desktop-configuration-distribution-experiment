@@ -1,0 +1,8 @@
+# `System Settings > Settings (Network) > Cookies`
+
+[Cookie Policy]
+AcceptSessionCookies=true
+CookieDomainAdvice=
+CookieGlobalAdvice=Accept
+Cookies=false
+RejectCrossDomainCookies=true

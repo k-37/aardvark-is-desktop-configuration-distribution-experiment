@@ -1,0 +1,18 @@
+# `System Settings > Appearance > Window Decorations > Theme > Edit Breeze Theme (displayed on the bottom-right of selected item) > Shadows`
+[Common]
+ShadowSize=ShadowSmall
+ShadowStrength=51
+
+[Style]
+# `System Settings > Application Style > Application Style > Configure Style > General`
+MnemonicsMode=MN_ALWAYS
+WindowDragMode=WD_NONE
+SplitterProxyEnabled=false
+
+# `System Settings > Application Style > Application Style > Configure Style > Scrollbars`
+ScrollBarAddLineButtons=1
+ScrollBarSubLineButtons=1
+
+# `System Settings > Appearance > Window Decorations > Theme > Edit Breeze Theme (displayed on the bottom-right of selected item) > General`
+[Windeco]
+TitleAlignment=AlignLeft

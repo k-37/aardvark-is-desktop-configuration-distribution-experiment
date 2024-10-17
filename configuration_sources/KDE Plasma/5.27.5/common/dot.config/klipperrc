@@ -1,0 +1,5 @@
+# `Plasma Panel > System Tray > Right click Clipboard icon > Configure clipboard...`
+
+[General]
+IgnoreImages=false
+MaxClipItems=42

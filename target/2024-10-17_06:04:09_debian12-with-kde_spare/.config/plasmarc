@@ -1,0 +1,7 @@
+# `System Settings > Input Devices > Keyboard > Layouts > Shortcuts for Switching Layout > OSD on layout change`
+
+[OSD]
+kbdLayoutChangedEnabled=false
+
+[PlasmaToolTips]
+Delay=-1

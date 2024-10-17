@@ -1,0 +1,4 @@
+# This is spare, I will repeat this is spare_from_template
+
+#env
+LESS = --jump-target=6 --no-init --RAW-CONTROL-CHARS --LONG-PROMPT --ignore-case

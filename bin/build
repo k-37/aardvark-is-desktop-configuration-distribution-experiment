@@ -1,0 +1,281 @@
+#!/usr/bin/env php
+
+<?php
+
+if (php_sapi_name() !== 'cli') {
+    fwrite(STDERR, 'Error: PHP SAPI must be CLI.' . PHP_EOL);
+    exit(1);
+}
+
+require_once __DIR__ . '/../src/Library.php';
+require_once __DIR__ . '/../src/ConfigurationForDistribution.php';
+
+setConfiguration(__DIR__ . '/..');
+parseCommandLineArguments($argv, $distribution, $systemType);
+setAdditionalConfiguration($distribution);
+main($distribution, $systemType);
+
+function main(string $distribution, string $systemType): void {
+    [
+        $targetRootPath,
+        $targetManualConfigurationPath,
+    ] = createAndGetTargetPaths($distribution, $systemType);
+
+    foreach (new DirectoryIterator(CONFIGURATION_SOURCES_ROOT_PATH) as $itemInConfigSrcRoot) {
+        if($itemInConfigSrcRoot->isDot() || !$itemInConfigSrcRoot->isDir()) {
+            continue;
+        }
+
+        if (!$configurationForDistribution = ConfigurationForDistribution::create(
+            $itemInConfigSrcRoot->getFileName(),
+            $itemInConfigSrcRoot->getRealPath(),
+            $systemType,
+            CONFIG_FILE_NAME,
+            DEBUG,
+        )) {
+            continue;
+        }
+
+        $configuredVersionAbsolutePath = getConfiguredVersionAbsolutePath(
+            $itemInConfigSrcRoot->getRealPath(),
+            $configurationForDistribution->getVersion(),
+        );
+        $configurationSourcesToCopy = getConfigurationSourcesToCopy(
+            $configuredVersionAbsolutePath,
+            $systemType,
+        );
+        copyConfigurationSources(
+            $configurationSourcesToCopy,
+            $targetRootPath,
+            $targetManualConfigurationPath,
+            $configurationForDistribution,
+        );
+        renderTemplates(
+            $targetRootPath,
+            $configurationForDistribution,
+        );
+    }
+
+    printInfoMessage(sprintf(
+        'Generated configuration is stored in target directory:%s%s',
+        PHP_EOL,
+        $targetRootPath,
+    ));
+}
+
+function setConfiguration(string $projectRootPath): void {
+    define('TARGET_ROOT_PATH', $projectRootPath . '/target');
+    define('CONFIGURATION_SOURCES_ROOT_PATH',
+        $projectRootPath . '/configuration_sources'
+    );
+    define('TARGET_MANUAL_CONFIGURATION_PATH', '/Desktop/manual_configuration');
+    define('DEBUG', getenv('DEBUG', true) ?: getenv('DEBUG'));
+    define('SUPPORTED_SYSTEM_TYPES', ['prime', 'spare']);
+    define('COMMON_CONFIGURATION_SOURCE', 'common');
+}
+
+function setAdditionalConfiguration(string $distribution): void {
+    define('CONFIG_FILE_NAME', "$distribution.json");
+}
+
+/**
+ * Executing `php -f somefile.php a=1 b[]=2 b[]=3`
+ * will set `$cliArgs['a']` to `1` and `$cliArgs['b']` to `['2', '3']`.
+ */
+function parseCommandLineArguments($argv, &$distribution, &$systemType): void {
+    parse_str(implode('&', array_slice($argv, 1)), $cliArgs);
+
+    if (empty($cliArgs['for_distribution'])) {
+        printErrorMessageAndExit(
+            'Argument "for_distribution" must be defined, e.g. "for_distribution=debian12".'
+        );
+    }
+
+    $distribution ??= $cliArgs['for_distribution'];
+
+    if (empty($cliArgs['system_type'])) {
+        printErrorMessageAndExit(
+            sprintf(
+                'Argument "system_type" must be defined, e.g. "system_type=%s".',
+                SUPPORTED_SYSTEM_TYPES[0],
+            )
+        );
+    }
+
+    $systemType ??= $cliArgs['system_type'];
+
+    if (!in_array($systemType, SUPPORTED_SYSTEM_TYPES)) {
+        printErrorMessageAndExit(
+            sprintf(
+                'Argument "system_type=%s" is not supported. Supported types are "%s".',
+                $systemType,
+                implode(', ', SUPPORTED_SYSTEM_TYPES),
+            )
+        );
+    }
+}
+
+function createAndGetTargetPaths(string $distribution, string $systemType): array {
+    $targetRootPath = sprintf(
+        "%s/%s_%s_%s",
+        TARGET_ROOT_PATH,
+        date('Y-m-d_H:i:s'),
+        $distribution,
+        $systemType,
+    );
+
+    if (!mkdir($targetRootPath)) {
+        printErrorMessageAndExit(
+            sprintf('Failed to create directory: %s', $targetRootPath)
+        );
+    }
+
+    $targetManualConfigurationPath = $targetRootPath . TARGET_MANUAL_CONFIGURATION_PATH;
+
+    if (!mkdir($targetManualConfigurationPath, 0755, true)) {
+        printErrorMessageAndExit(
+            sprintf('Failed to create directory: %s', $targetManualConfigurationPath)
+        );
+    }
+
+    return [
+        $targetRootPath,
+        $targetManualConfigurationPath,
+    ];
+}
+
+function getConfiguredVersionAbsolutePath(
+    string $configurationSourceRootAbsolutePath,
+    string $configuredVersion,
+): string
+{
+    $configuredVersionAbsolutePath =
+        $configurationSourceRootAbsolutePath . DIRECTORY_SEPARATOR . $configuredVersion;
+
+    if (!is_dir("$configuredVersionAbsolutePath")) {
+        printErrorMessageAndExit(
+            sprintf(
+                'Directory for version configured in %s doesn\'t exist "%s"',
+                CONFIG_FILE_NAME,
+                $configuredVersionAbsolutePath,
+            )
+        );
+    }
+
+    return $configuredVersionAbsolutePath;
+}
+
+/**
+ * @return [
+ *     [
+ *         configuration_sources/KDE Plasma/5.27.5/common/dot.local,
+ *         dot.local
+ *     ],
+ *     ...
+ * ]
+ */
+function getConfigurationSourcesToCopy(
+    string $configuredVersionAbsolutePath,
+    string $systemType,
+): array {
+    $absolutePathsWithConfSrcsForCurrentSystemType = [];
+    foreach (new DirectoryIterator($configuredVersionAbsolutePath) as $itemInVersionDir) {
+        if ($itemInVersionDir->isDot()
+            || (
+                $itemInVersionDir->getFileName() !== $systemType
+                & $itemInVersionDir->getFileName() !== COMMON_CONFIGURATION_SOURCE
+            )
+        ) {
+            continue;
+        }
+
+        $absolutePathsWithConfSrcsForCurrentSystemType[] = $itemInVersionDir->getRealPath();
+    }
+
+    $configurationSourcesToCopy = [];
+    foreach ($absolutePathsWithConfSrcsForCurrentSystemType as $itemInConfigSrcsForCurrentSystemType) {
+        foreach (new DirectoryIterator($itemInConfigSrcsForCurrentSystemType) as $confSrcsToCopy) {
+            if ($confSrcsToCopy->isDot()) {
+                continue;
+            }
+
+            $configurationSourcesToCopy[] = [
+                $confSrcsToCopy->getRealPath(),
+                $confSrcsToCopy->getFileName(),
+            ];
+        }
+    }
+
+    return $configurationSourcesToCopy;
+}
+
+/**
+ * @param configurationSourcesToCopy [
+ *     [
+ *         configuration_sources/KDE Plasma/5.27.5/common/dot.local,
+ *         dot.local
+ *     ],
+ *     ...
+ * ]
+ * @param $targetRootPath string
+ * @param $targetManualConfigurationPath string
+ * @param $configurationForDistribution ConfigurationForDistribution
+ *
+ * @return void
+ */
+function copyConfigurationSources(
+    array $configurationSourcesToCopy,
+    string $targetRootPath,
+    string $targetManualConfigurationPath,
+    ConfigurationForDistribution $configurationForDistribution,
+): void {
+    foreach ($configurationSourcesToCopy as [$sourceAbsolutePath, $sourceItemName]) {
+        $targetPath = $targetRootPath;
+        $targetName = $sourceItemName;
+
+        if (str_starts_with($sourceItemName, 'dot.')) {
+            $targetName = str_replace('dot.', '.', $sourceItemName);
+        } elseif ('manual_configuration' === $sourceItemName) {
+            $targetPath = $targetManualConfigurationPath;
+            $targetName = $configurationForDistribution->getManualConfigurationFolderName();
+
+            if ('' === $targetName) {
+                printErrorMessageAndExit(
+                    sprintf(
+                        'Manual configuration folder name is not defined in configuration for %s',
+                        $sourceAbsolutePath,
+                    )
+                );
+            }
+        }
+
+        if (is_dir($sourceAbsolutePath)) {
+            copyRecursive($sourceAbsolutePath, $targetPath . DIRECTORY_SEPARATOR . $targetName);
+        } else {
+            copy($sourceAbsolutePath, $targetPath . DIRECTORY_SEPARATOR . $targetName);
+        }
+    }
+}
+
+function renderTemplates(
+    string $targetRootPath,
+    ConfigurationForDistribution $configurationForDistribution,
+): void {
+    $templates = $configurationForDistribution->getTemplates();
+
+    if (empty($templates)) {
+        return;
+    }
+
+    foreach ($templates as $templateRelativePath => $templateKeysAndValues) {
+        $templateContents = file_get_contents($targetRootPath . DIRECTORY_SEPARATOR . $templateRelativePath);
+        foreach ($templateKeysAndValues as $key => $value) {
+            $templateContents = str_replace('{{ ' . $key . ' }}', $value, $templateContents);
+        }
+
+        $renderedFileName = str_replace('.tpl', '', $templateRelativePath);
+        $renderedFilePath = $targetRootPath . DIRECTORY_SEPARATOR . $renderedFileName;
+        file_put_contents($renderedFilePath, $templateContents);
+        unlink($targetRootPath . DIRECTORY_SEPARATOR . $templateRelativePath);
+    }
+}

@@ -1,0 +1,15 @@
+{
+    "version": "590",
+    "templates": {
+        "prime": {
+            ".lesskey.tpl": {
+                "SYSTEM_TYPE": "prime_from_template"
+            }
+        },
+        "spare": {
+            ".lesskey.tpl": {
+                "SYSTEM_TYPE": "spare_from_template"
+            }
+        }
+    }
+}

@@ -1,0 +1,4 @@
+# `System Settings > Applications > Default Applications`
+
+[EmbedSettings]
+embed-x-scheme-handler/tel=false

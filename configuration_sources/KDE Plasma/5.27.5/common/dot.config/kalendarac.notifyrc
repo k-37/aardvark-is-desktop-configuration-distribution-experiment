@@ -1,0 +1,7 @@
+# `System Settings > Notifications > Additional feedback > Applications-specific settings > Configure... (button)`
+
+[Event/alarm]
+Action=Popup
+Execute=
+Logfile=
+TTS=
